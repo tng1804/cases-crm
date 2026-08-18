@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. DATABASE SERVICE (PostgreSQL)
+  # ----------------------------------------------------------------------------
+  db:
+    image: postgres:15-alpine
+    container_name: odoo-crm-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-odoo}
+      POSTGRES_USER: ${POSTGRES_USER:-odoo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-odoo} -d ${POSTGRES_DB:-odoo}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # 2. ODOO SERVICE
+  # ----------------------------------------------------------------------------
+  odoo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: odoo-crm-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - HOST=${DB_HOST:-db}
+      - PORT=${DB_PORT:-5432}
+      - USER=${DB_USER:-odoo}
+      - PASSWORD=${DB_PASSWORD}
+      - ADMIN_PASSWORD=${ODOO_ADMIN_PASSWORD:-admin}
+      - TZ=UTC
+    volumes:
+      # Named volume để lưu trữ data (sessions, attachments) tránh lỗi phân quyền (permission denied) trên Linux Staging
+      - odoo_data:/var/lib/odoo
+      # Mount folder addons để phát triển custom module ở local hoặc update code trên staging
+      - ./custom_addons:/mnt/extra-addons
+      # Mount file cấu hình Odoo
+      - ./config/odoo.conf:/etc/odoo/odoo.conf:ro
+    ports:
+      # Cổng HTTP và Longpolling của Odoo để debug trực tiếp (nếu cần)
+      - "${ODOO_PORT:-8069}:8069"
+      - "${ODOO_CHAT_PORT:-8072}:8072"
+    command: odoo -c /etc/odoo/odoo.conf
+
+  # ----------------------------------------------------------------------------
+  # 3. WEB SERVER SERVICE (Nginx Reverse Proxy)
+  # ----------------------------------------------------------------------------
+  webserver:
+    image: nginx:alpine
+    container_name: odoo-crm-nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - odoo
+
+volumes:
+  postgres_data:
+  odoo_data:
