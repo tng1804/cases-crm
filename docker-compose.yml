@@ -54,20 +54,6 @@ services:
       - "${ODOO_CHAT_PORT:-8072}:8072"
     command: odoo -c /etc/odoo/odoo.conf
 
-  # ----------------------------------------------------------------------------
-  # 3. WEB SERVER SERVICE (Nginx Reverse Proxy)
-  # ----------------------------------------------------------------------------
-  webserver:
-    image: nginx:alpine
-    container_name: odoo-crm-nginx
-    restart: unless-stopped
-    ports:
-      - "${HTTP_PORT:-80}:80"
-      - "${HTTPS_PORT:-443}:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on:
-      - odoo
 
 volumes:
   postgres_data:
