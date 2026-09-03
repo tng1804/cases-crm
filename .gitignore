@@ -1,5 +1,7 @@
 .env
 data/
 pgdata/
+backups/
+.openupgrade/
 *.pyc
 __pycache__/
