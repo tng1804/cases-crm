@@ -1,6 +1,9 @@
-FROM odoo:18
+FROM odoo:19
 
 USER root
+
+# Dependency required by the OpenUpgrade 19.0 migration framework
+RUN pip3 install --no-cache-dir --break-system-packages openupgradelib
 
 # Tạo thư mục cho custom addons và phân quyền cho user odoo
 RUN mkdir -p /mnt/extra-addons && chown -R odoo:odoo /mnt/extra-addons
